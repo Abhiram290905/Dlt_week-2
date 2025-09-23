@@ -1,0 +1,90 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --- Create toy dataset (binary classification) ---
+np.random.seed(42)
+X = np.random.randn(200, 2)   # 200 samples, 2 features
+y = (X[:, 0] * X[:, 1] > 0).astype(int).reshape(-1, 1)
+
+# --- Helper functions ---
+def sigmoid(z):
+    return 1 / (1 + np.exp(-z))
+
+def relu(z):
+    return np.maximum(0, z)
+
+def relu_deriv(z):
+    return (z > 0).astype(float)
+
+# --- Initialize weights ---
+hidden_units = 4
+W1 = np.random.randn(2, hidden_units) * 0.01
+b1 = np.zeros((1, hidden_units))
+W2 = np.random.randn(hidden_units, 1) * 0.01
+b2 = np.zeros((1, 1))
+
+# --- Training loop ---
+lr = 0.1
+epochs = 1000
+losses = []       # store losses
+accuracies = []   # store accuracies
+epoch_list = []
+
+for epoch in range(epochs):
+    # Forward pass
+    Z1 = X.dot(W1) + b1
+    A1 = relu(Z1)
+    Z2 = A1.dot(W2) + b2
+    A2 = sigmoid(Z2)
+
+    # Loss (binary cross entropy)
+    m = X.shape[0]
+    loss = -np.mean(y * np.log(A2 + 1e-8) + (1 - y) * np.log(1 - A2 + 1e-8))
+    losses.append(loss)
+
+    # Accuracy
+    predictions = (A2 > 0.5).astype(int)
+    accuracy = np.mean(predictions == y)
+    accuracies.append(accuracy)
+
+    epoch_list.append(epoch)
+
+    # Backpropagation
+    dZ2 = A2 - y
+    dW2 = (A1.T.dot(dZ2)) / m
+    db2 = np.mean(dZ2, axis=0, keepdims=True)
+
+    dA1 = dZ2.dot(W2.T)
+    dZ1 = dA1 * relu_deriv(Z1)
+    dW1 = (X.T.dot(dZ1)) / m
+    db1 = np.mean(dZ1, axis=0, keepdims=True)
+
+    # Gradient descent update
+    W1 -= lr * dW1
+    b1 -= lr * db1
+    W2 -= lr * dW2
+    b2 -= lr * db2
+
+    # Print every 100 epochs
+    if epoch % 100 == 0:
+        print(f"Epoch {epoch}, Loss: {loss:.4f}, Accuracy: {accuracy:.4f}")
+
+# --- Plot Loss & Accuracy ---
+plt.figure(figsize=(10,4))
+
+plt.subplot(1,2,1)
+plt.plot(epoch_list, losses, label="Loss")
+plt.xlabel("Epochs")
+plt.ylabel("Loss")
+plt.title("Training Loss")
+plt.legend()
+
+plt.subplot(1,2,2)
+plt.plot(epoch_list, accuracies, label="Accuracy", color="orange")
+plt.xlabel("Epochs")
+plt.ylabel("Accuracy")
+plt.title("Training Accuracy")
+plt.legend()
+
+plt.tight_layout()
+plt.show()
