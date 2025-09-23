@@ -1,0 +1,104 @@
+# ==============================
+# MNIST Feedforward NN in PyTorch with Visualization
+# ==============================
+
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torchvision import datasets, transforms
+from torch.utils.data import DataLoader
+import matplotlib.pyplot as plt
+
+# Step 1: Transformations
+transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.5,), (0.5,))
+])
+
+# Step 2: Load MNIST dataset
+train_dataset = datasets.MNIST(root="./data", train=True, transform=transform, download=True)
+test_dataset = datasets.MNIST(root="./data", train=False, transform=transform, download=True)
+
+train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
+
+# Step 3: Define Feedforward Neural Network
+class FeedforwardNN(nn.Module):
+    def __init__(self):
+        super(FeedforwardNN, self).__init__()
+        self.fc1 = nn.Linear(28*28, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, 10)
+        self.relu = nn.ReLU()
+        self.softmax = nn.LogSoftmax(dim=1)
+
+    def forward(self, x):
+        x = x.view(-1, 28*28)
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
+        return self.softmax(x)
+
+model = FeedforwardNN()
+
+# Step 4: Loss and optimizer
+criterion = nn.NLLLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+# To store training history
+train_losses = []
+train_accuracies = []
+
+# Step 5: Train the model
+for epoch in range(5):
+    model.train()
+    total_loss = 0
+    correct, total = 0, 0
+
+    for images, labels in train_loader:
+        optimizer.zero_grad()
+        output = model(images)
+        loss = criterion(output, labels)
+        loss.backward()
+        optimizer.step()
+
+        total_loss += loss.item()
+        _, predicted = torch.max(output.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+    avg_loss = total_loss / len(train_loader)
+    accuracy = 100 * correct / total
+    train_losses.append(avg_loss)
+    train_accuracies.append(accuracy)
+
+    print(f"Epoch {epoch+1}, Loss: {avg_loss:.4f}, Accuracy: {accuracy:.2f}%")
+
+# Step 6: Evaluate model on test data
+model.eval()
+correct, total = 0, 0
+with torch.no_grad():
+    for images, labels in test_loader:
+        output = model(images)
+        _, predicted = torch.max(output.data, 1)
+        total += labels.size(0)
+        correct += (predicted == labels).sum().item()
+
+print(f"Final Test Accuracy: {100 * correct / total:.2f}%")
+
+# Step 7: Visualization
+plt.figure(figsize=(12,5))
+
+plt.subplot(1,2,1)
+plt.plot(train_losses, marker='o')
+plt.title("Training Loss per Epoch")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+
+plt.subplot(1,2,2)
+plt.plot(train_accuracies, marker='o')
+plt.title("Training Accuracy per Epoch")
+plt.xlabel("Epoch")
+plt.ylabel("Accuracy (%)")
+
+plt.show()
