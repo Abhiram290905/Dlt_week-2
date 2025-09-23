@@ -1,0 +1,83 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, LeakyReLU, Activation
+
+# Plot activation functions
+def plot_activation_functions():
+    x = np.linspace(-10, 10, 400)
+
+    # Sigmoid
+    sigmoid = 1 / (1 + np.exp(-x))
+
+    # Tanh
+    tanh = np.tanh(x)
+
+    # ReLU
+    relu = np.maximum(0, x)
+
+    # Leaky ReLU
+    alpha = 0.01
+    leaky_relu = np.where(x > 0, x, alpha * x)
+
+    # Plot all
+    plt.figure(figsize=(12, 8))
+    plt.plot(x, sigmoid, label='Sigmoid')
+    plt.plot(x, tanh, label='Tanh')
+    plt.plot(x, relu, label='ReLU')
+    plt.plot(x, leaky_relu, label='Leaky ReLU')
+    plt.title("Activation Functions")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Load and prepare data
+data = load_iris()
+X = data.data
+y = data.target.reshape(-1, 1)
+
+encoder = OneHotEncoder(sparse_output=False)
+y_encoded = encoder.fit_transform(y)
+
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Define a function to build, train, and evaluate model with a given activation function
+def train_with_activation(activation_name):
+    print(f"\nTraining with activation function: {activation_name}")
+    model = Sequential()
+
+    if activation_name == 'leaky_relu':
+        # For LeakyReLU, add layer without activation then LeakyReLU layer
+        model.add(Dense(10, input_shape=(4,)))
+        model.add(LeakyReLU(alpha=0.01))
+        model.add(Dense(10))
+        model.add(LeakyReLU(alpha=0.01))
+    else:
+        model.add(Dense(10, input_shape=(4,), activation=activation_name))
+        model.add(Dense(10, activation=activation_name))
+
+    # Output layer always softmax for multi-class classification
+    model.add(Dense(3, activation='softmax'))
+
+    model.compile(optimizer='adam',
+                  loss='categorical_crossentropy',
+                  metrics=['accuracy'])
+
+    model.fit(X_train, y_train, epochs=50, batch_size=5, verbose=0)
+    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+    print(f"Test accuracy with {activation_name}: {accuracy:.4f}")
+
+# Plot activation functions first
+plot_activation_functions()
+
+# Train and evaluate models with different activation functions
+for act_func in ['sigmoid', 'tanh', 'relu', 'leaky_relu']:
+    train_with_activation(act_func)
