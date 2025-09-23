@@ -1,0 +1,86 @@
+# Step 1: Import Libraries
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.datasets import load_wine
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Step 2: Load Dataset (Wine)
+wine = load_wine()
+X = wine.data
+y = wine.target
+
+# Split dataset
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.3, random_state=42, stratify=y
+)
+
+# Standardize features
+scaler = StandardScaler()
+X_train = scaler.fit_transform(X_train)
+X_test = scaler.transform(X_test)
+
+# Convert to tensors
+X_train = torch.tensor(X_train, dtype=torch.float32)
+X_test = torch.tensor(X_test, dtype=torch.float32)
+y_train = torch.tensor(y_train, dtype=torch.long)
+y_test = torch.tensor(y_test, dtype=torch.long)
+
+# Step 3: Define Classifier (MLP)
+class Classifier(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(Classifier, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
+
+    def forward(self, x):
+        x = self.relu(self.fc1(x))
+        return self.fc2(x)
+
+input_dim = X_train.shape[1]   # 13 features
+hidden_dim = 32                # increased since dataset is bigger
+output_dim = len(wine.target_names)  # 3 classes
+model = Classifier(input_dim, hidden_dim, output_dim)
+
+# Step 4: Loss & Optimizer
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.01)
+
+# Step 5: Training Loop
+epochs = 200
+for epoch in range(epochs):
+    outputs = model(X_train)
+    loss = criterion(outputs, y_train)
+
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+
+    if (epoch+1) % 50 == 0:
+        print(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.4f}")
+
+# Step 6: Evaluation
+model.eval()
+with torch.no_grad():
+    y_pred = model(X_test)
+    _, predicted = torch.max(y_pred, 1)
+
+# Statistical Parameters
+print("\nAccuracy:", accuracy_score(y_test, predicted))
+print("\nClassification Report:\n", classification_report(y_test, predicted, target_names=wine.target_names))
+cm = confusion_matrix(y_test, predicted)
+print("\nConfusion Matrix:\n", cm)
+
+# Step 7: Visualization
+plt.figure(figsize=(6,4))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues',
+            xticklabels=wine.target_names, yticklabels=wine.target_names)
+plt.title("Confusion Matrix (PyTorch Classifier - Wine Dataset)")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
